@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-import rclpy
+from rclpy.node import Node
 
 
 class PublisherPool:
     """A simple publisher pool to manage multiple ROS2 publishers."""
 
-    def __init__(self, node: rclpy.node.Node):
+    def __init__(self, node: Node):
         self.node = node
         self.publishers = {}
 

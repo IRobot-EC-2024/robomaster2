@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+print_usage() {
+  cat <<'EOF'
+Usage:
+  ros2 run rm_referee_mock rqt_clean_start [plugin] [rqt_args...]
+
+Plugins:
+  match_control      Start rm_referee_mock/MatchControl (default)
+  keyboard           Start rm_referee_mock/KeyboardPublisher
+  dart_client        Start rm_referee_mock/DartClient
+  fake_location      Start rm_referee_mock/FakeLocation
+  plain              Start plain rqt after clearing config and forcing discover
+
+Examples:
+  ros2 run rm_referee_mock rqt_clean_start
+  ros2 run rm_referee_mock rqt_clean_start fake_location
+  ros2 run rm_referee_mock rqt_clean_start plain --list-plugins
+EOF
+}
+
+plugin_name="match_control"
+if [[ $# -gt 0 ]]; then
+  case "$1" in
+    -h|--help)
+      print_usage
+      exit 0
+      ;;
+    match_control|match|mc|keyboard|keyboard_publisher|dart|dart_client|fake|fake_location|plain)
+      plugin_name="$1"
+      shift
+      ;;
+    -*)
+      :
+      ;;
+    *)
+      echo "Unknown plugin preset: $1" >&2
+      print_usage >&2
+      exit 2
+      ;;
+  esac
+fi
+
+plugin_id=""
+case "${plugin_name}" in
+  match_control|match|mc)
+    plugin_id="rm_referee_mock/MatchControl"
+    ;;
+  keyboard|keyboard_publisher)
+    plugin_id="rm_referee_mock/KeyboardPublisher"
+    ;;
+  dart|dart_client)
+    plugin_id="rm_referee_mock/DartClient"
+    ;;
+  fake|fake_location)
+    plugin_id="rm_referee_mock/FakeLocation"
+    ;;
+  plain)
+    plugin_id=""
+    ;;
+esac
+
+cmd=(rqt --clear-config --force-discover)
+if [[ -n "${plugin_id}" ]]; then
+  cmd+=(--standalone "${plugin_id}")
+fi
+cmd+=("$@")
+
+exec "${cmd[@]}"

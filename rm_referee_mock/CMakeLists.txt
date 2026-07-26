@@ -18,5 +18,24 @@ install(FILES
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  scripts/rqt_clean_start
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_python_install_package(${PROJECT_NAME}) # Install Python module
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_sentry_posture test/test_sentry_posture.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  ament_add_pytest_test(test_sentry_protocol test/test_sentry_protocol.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  ament_add_pytest_test(test_match_rules test/test_match_rules.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
+endif()
+
 ament_package()

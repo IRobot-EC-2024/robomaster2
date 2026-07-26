@@ -2,13 +2,22 @@
 #include "referee_node/referee_node.hpp"
 #include "referee_node/log_utils.hpp"
 
-RefereeNode::RefereeNode(const rclcpp::NodeOptions &options) : rclcpp::Node("referee_node", options) {
+RefereeNode::RefereeNode(const rclcpp::NodeOptions &options) : RefereeNode("referee_node", options, true) {}
+
+RefereeNode::RefereeNode(const std::string &node_name, const rclcpp::NodeOptions &options, bool start_serial_io)
+    : rclcpp::Node(node_name, options) {
   SpawnPublishers();
-  GetParameters();
+  if (start_serial_io) {
+    GetParameters();
+  }
 
   // 为两个 Referee 对象注册回调函数
   normal_referee_.AttachCallback([this](uint16_t cmd_id, uint8_t seq) { PublishMsg(cmd_id, normal_referee_.data()); });
   vt_referee_.AttachCallback([this](uint16_t cmd_id, uint8_t seq) { PublishMsg(cmd_id, vt_referee_.data()); });
+
+  if (!start_serial_io) {
+    return;
+  }
 
   // 初始化串口、启动线程
   if (param_enable_normal_) {
@@ -38,14 +47,7 @@ RefereeNode::RefereeNode(const rclcpp::NodeOptions &options) : rclcpp::Node("ref
         if (normal_recorder_) {
           normal_recorder_->Write(data);
         }
-        for (auto byte : data) {
-          normal_referee_ << byte;
-        }
-        if (normal_referee_.loss_rate() > 10.f) {
-          RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                               text::Yellow("High loss rate on normal link! %.2f%%").c_str(),
-                               normal_referee_.loss_rate());
-        }
+        FeedNormalData(data);
       }
     });
   } else {
@@ -83,14 +85,7 @@ RefereeNode::RefereeNode(const rclcpp::NodeOptions &options) : rclcpp::Node("ref
         if (vt_recorder_) {
           vt_recorder_->Write(data);
         }
-        for (auto byte : data) {
-          vt_referee_ << byte;
-        }
-        if (vt_referee_.loss_rate() > 10.f) {
-          RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                               text::Yellow("High loss rate on VT link! %.2f%%").c_str(),  //
-                               vt_referee_.loss_rate());
-        }
+        FeedVtData(data);
       }
     });
   } else {
@@ -115,6 +110,26 @@ RefereeNode::RefereeNode(const rclcpp::NodeOptions &options) : rclcpp::Node("ref
           response->header.stamp = get_clock()->now();
         });
     RCLCPP_INFO(get_logger(), "Referee service is now at /rm_referee/tx");
+  }
+}
+
+void RefereeNode::FeedNormalData(const std::string &data) {
+  for (auto byte : data) {
+    normal_referee_ << byte;
+  }
+  if (normal_referee_.loss_rate() > 10.f) {
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                         text::Yellow("High loss rate on normal link! %.2f%%").c_str(), normal_referee_.loss_rate());
+  }
+}
+
+void RefereeNode::FeedVtData(const std::string &data) {
+  for (auto byte : data) {
+    vt_referee_ << byte;
+  }
+  if (vt_referee_.loss_rate() > 10.f) {
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                         text::Yellow("High loss rate on VT link! %.2f%%").c_str(), vt_referee_.loss_rate());
   }
 }
 
@@ -214,11 +229,11 @@ void RefereeNode::SpawnPublishers() {
   robot_custom_data_2_pub_ = create_publisher<rm_referee_msgs::msg::RobotCustomData2>(  //
       "/rm_referee/robot_custom_data_2",                                                //
       rclcpp::SensorDataQoS());
+  custom_control_pub_ = create_publisher<rm_referee_msgs::msg::CustomControl>(  //
+      "/rm_referee/custom_control",                                               //
+      rclcpp::SensorDataQoS());
   map_command_pub_ = create_publisher<rm_referee_msgs::msg::MapCommand>(  //
       "/rm_referee/map_command",                                          //
-      rclcpp::SensorDataQoS());
-  remote_control_pub_ = create_publisher<rm_referee_msgs::msg::RemoteControl>(  //
-      "/rm_referee/remote_control",                                             //
       rclcpp::SensorDataQoS());
   RCLCPP_INFO(get_logger(), "Publishers spawned");
 }
@@ -279,10 +294,12 @@ void RefereeNode::PublishMsg(uint16_t cmd_id, const rm::device::RefereeProtocol<
       game_robot_hp_msg_.ally_2_robot_hp = referee_data.game_robot_HP.ally_2_robot_HP;
       game_robot_hp_msg_.ally_3_robot_hp = referee_data.game_robot_HP.ally_3_robot_HP;
       game_robot_hp_msg_.ally_4_robot_hp = referee_data.game_robot_HP.ally_4_robot_HP;
-      game_robot_hp_msg_.reserved = referee_data.game_robot_HP.reserved;
+      game_robot_hp_msg_.damage_difference = referee_data.game_robot_HP.damage_difference;
       game_robot_hp_msg_.ally_7_robot_hp = referee_data.game_robot_HP.ally_7_robot_HP;
       game_robot_hp_msg_.ally_outpost_hp = referee_data.game_robot_HP.ally_outpost_HP;
       game_robot_hp_msg_.ally_base_hp = referee_data.game_robot_HP.ally_base_HP;
+      game_robot_hp_msg_.enemy_outpost_hp = referee_data.game_robot_HP.enemy_outpost_HP;
+      game_robot_hp_msg_.enemy_base_hp = referee_data.game_robot_HP.enemy_base_HP;
       game_robot_hp_pub_->publish(game_robot_hp_msg_);
       break;
     }
@@ -316,6 +333,7 @@ void RefereeNode::PublishMsg(uint16_t cmd_id, const rm::device::RefereeProtocol<
       robot_status_msg_.shooter_barrel_cooling_value = referee_data.robot_status.shooter_barrel_cooling_value;
       robot_status_msg_.shooter_barrel_heat_limit = referee_data.robot_status.shooter_barrel_heat_limit;
       robot_status_msg_.chassis_power_limit = referee_data.robot_status.chassis_power_limit;
+      robot_status_msg_.bullet_speed_limit = referee_data.robot_status.bullet_speed_limit;
       robot_status_msg_.power_management_gimbal_output = referee_data.robot_status.power_management_gimbal_output;
       robot_status_msg_.power_management_chassis_output = referee_data.robot_status.power_management_chassis_output;
       robot_status_msg_.power_management_shooter_output = referee_data.robot_status.power_management_shooter_output;
@@ -348,6 +366,7 @@ void RefereeNode::PublishMsg(uint16_t cmd_id, const rm::device::RefereeProtocol<
       buff_msg_.defence_buff = referee_data.buff.defence_buff;
       buff_msg_.vulnerability_buff = referee_data.buff.vulnerability_buff;
       buff_msg_.attack_buff = referee_data.buff.attack_buff;
+      buff_msg_.remaining_energy = referee_data.buff.remaining_energy;
       buff_pub_->publish(buff_msg_);
       break;
     }
@@ -418,6 +437,7 @@ void RefereeNode::PublishMsg(uint16_t cmd_id, const rm::device::RefereeProtocol<
       sentry_info_msg_.header.stamp = get_clock()->now();
       sentry_info_msg_.sentry_info = referee_data.sentry_info.sentry_info;
       sentry_info_msg_.sentry_info_2 = referee_data.sentry_info.sentry_info_2;
+      sentry_info_msg_.sentry_info_3 = referee_data.sentry_info.sentry_info_3;
       sentry_info_pub_->publish(sentry_info_msg_);
       break;
     }
@@ -441,8 +461,14 @@ void RefereeNode::PublishMsg(uint16_t cmd_id, const rm::device::RefereeProtocol<
     }
     case CmdEnum::kRobotCustomData2: {
       robot_custom_data_2_msg_.header.stamp = get_clock()->now();
-      memcpy(&robot_custom_data_2_msg_.data, referee_data.robot_custom_data_2.data, 150);
+      memcpy(&robot_custom_data_2_msg_.data, referee_data.robot_custom_data_2.data, 300);
       robot_custom_data_2_pub_->publish(robot_custom_data_2_msg_);
+      break;
+    }
+    case CmdEnum::kCustomControl: {
+      custom_control_msg_.header.stamp = get_clock()->now();
+      memcpy(&custom_control_msg_.data, referee_data.custom_control.data, 30);
+      custom_control_pub_->publish(custom_control_msg_);
       break;
     }
     case CmdEnum::kMapCommand: {
@@ -453,18 +479,6 @@ void RefereeNode::PublishMsg(uint16_t cmd_id, const rm::device::RefereeProtocol<
       map_command_msg_.target_robot_id = referee_data.map_command.target_robot_id;
       map_command_msg_.cmd_source = referee_data.map_command.cmd_source;
       map_command_pub_->publish(map_command_msg_);
-      break;
-    }
-    case CmdEnum::kRemoteControl: {
-      remote_control_msg_.header.stamp = get_clock()->now();
-      remote_control_msg_.mouse_x = referee_data.remote_control.mouse_x;
-      remote_control_msg_.mouse_y = referee_data.remote_control.mouse_y;
-      remote_control_msg_.mouse_z = referee_data.remote_control.mouse_z;
-      remote_control_msg_.left_button_down = referee_data.remote_control.left_button_down;
-      remote_control_msg_.right_button_down = referee_data.remote_control.right_button_down;
-      remote_control_msg_.keyboard_value = referee_data.remote_control.keyboard_value;
-      remote_control_msg_.reserved = referee_data.remote_control.reserved;
-      remote_control_pub_->publish(remote_control_msg_);
       break;
     }
   }

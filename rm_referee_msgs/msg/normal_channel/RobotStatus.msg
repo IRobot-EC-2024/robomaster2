@@ -6,6 +6,7 @@ uint16 maximum_hp
 uint16 shooter_barrel_cooling_value
 uint16 shooter_barrel_heat_limit
 uint16 chassis_power_limit
+float32 bullet_speed_limit
 bool power_management_gimbal_output
 bool power_management_chassis_output
 bool power_management_shooter_output

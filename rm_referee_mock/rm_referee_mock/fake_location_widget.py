@@ -15,9 +15,14 @@ from ament_index_python.packages import get_package_share_directory
 
 PACKAGE_SHARE = get_package_share_directory("rm_referee_mock")
 
-# (0, 0) at bottom-left, (29, 16) at top-right
-FIELD_WIDTH = 29.0
-FIELD_HEIGHT = 16.0
+# Referee-system official field coordinates, matching GroundRobotPosition:
+# origin at the lower-left corner of the map, +X right, +Y up.
+FIELD_MIN_X = 0.0
+FIELD_MAX_X = 28.0
+FIELD_MIN_Y = 0.0
+FIELD_MAX_Y = 15.0
+FIELD_WIDTH = FIELD_MAX_X - FIELD_MIN_X
+FIELD_HEIGHT = FIELD_MAX_Y - FIELD_MIN_Y
 
 
 class MapWidget(QWidget):
@@ -35,6 +40,7 @@ class MapWidget(QWidget):
     def __init__(self, map_image_path):
         super().__init__()
         self.map_pixmap = QPixmap(map_image_path)
+        self.sentry_id = 7
 
         # Initialize robot positions (in field coordinates)
         self.robot_positions = {
@@ -76,16 +82,16 @@ class MapWidget(QWidget):
 
     def field_to_widget(self, field_x, field_y):
         """Convert field coordinates to widget pixel coordinates
-        Field: (0, 0) at bottom-left, (10, 35) at top-right
+        Field: (0, 0) at bottom-left, (28, 15) at top-right
         Widget: (0, 0) at top-left
         """
         map_rect = self._scaled_rect
 
         # Map field coordinates to map rectangle coordinates
-        # x: 0 -> map_rect.left, 10 -> map_rect.right
-        # y: 0 -> map_rect.bottom, 35 -> map_rect.top (flip y-axis)
-        widget_x = map_rect.left() + (field_x / FIELD_WIDTH) * map_rect.width()
-        widget_y = map_rect.bottom() - (field_y / FIELD_HEIGHT) * map_rect.height()
+        # x: 0 -> map_rect.left, 28 -> map_rect.right
+        # y: 0 -> map_rect.bottom, 15 -> map_rect.top (flip y-axis)
+        widget_x = map_rect.left() + ((field_x - FIELD_MIN_X) / FIELD_WIDTH) * map_rect.width()
+        widget_y = map_rect.bottom() - ((field_y - FIELD_MIN_Y) / FIELD_HEIGHT) * map_rect.height()
 
         return int(widget_x), int(widget_y)
 
@@ -98,14 +104,14 @@ class MapWidget(QWidget):
         widget_y = max(map_rect.top(), min(widget_y, map_rect.bottom()))
 
         # Map widget coordinates to field coordinates
-        field_x = ((widget_x - map_rect.left()) /
-                   map_rect.width()) * FIELD_WIDTH
-        field_y = ((map_rect.bottom() - widget_y) /
-                   map_rect.height()) * FIELD_HEIGHT
+        field_x = FIELD_MIN_X + ((widget_x - map_rect.left()) /
+                                 map_rect.width()) * FIELD_WIDTH
+        field_y = FIELD_MIN_Y + ((map_rect.bottom() - widget_y) /
+                                 map_rect.height()) * FIELD_HEIGHT
 
         # Clamp to field bounds
-        field_x = max(0.0, min(field_x, FIELD_WIDTH))
-        field_y = max(0.0, min(field_y, FIELD_HEIGHT))
+        field_x = max(FIELD_MIN_X, min(field_x, FIELD_MAX_X))
+        field_y = max(FIELD_MIN_Y, min(field_y, FIELD_MAX_Y))
 
         return field_x, field_y
 
@@ -197,7 +203,8 @@ class MapWidget(QWidget):
             font = QFont("Arial", 10, QFont.Bold)
             painter.setFont(font)
 
-            text = f"{robot_info['id']}"
+            robot_id = self.sentry_id if robot_key == 'sentry' else robot_info['id']
+            text = f"{robot_id}"
             text_rect = QRect(widget_x - 20, widget_y + radius + 2, 40, 20)
 
             # Draw text outline (white)
@@ -286,6 +293,12 @@ class MapWidget(QWidget):
         """Get all robot positions in field coordinates"""
         return self.robot_positions.copy()
 
+    def set_sentry_id(self, sentry_id):
+        """Set the displayed sentry ID for the selected alliance."""
+        if sentry_id in (7, 107):
+            self.sentry_id = sentry_id
+            self.update()
+
 
 class FakeLocationWidget(QWidget):
     """Widget for fake location data publishing"""
@@ -304,7 +317,7 @@ class FakeLocationWidget(QWidget):
         settings_group = QGroupBox("发布设置")
         settings_layout = QFormLayout()
 
-        self.topic_prefix_edit = ConfirmedLineEdit("/rm_referee/mock")
+        self.topic_prefix_edit = ConfirmedLineEdit("/rm_referee")
         self.topic_prefix_edit.setPlaceholderText("输入话题前缀")
         settings_layout.addRow("话题前缀:", self.topic_prefix_edit)
 
@@ -318,8 +331,12 @@ class FakeLocationWidget(QWidget):
             "2 - 工程",
             "3 - 步兵3",
             "4 - 步兵4",
-            "7 - 哨兵"
+            "7 - 红方哨兵",
+            "107 - 蓝方哨兵"
         ])
+        self.current_robot_combo.setCurrentIndex(4)
+        self.current_robot_combo.currentIndexChanged.connect(
+            self._on_current_robot_changed)
         settings_layout.addRow("当前机器人:", self.current_robot_combo)
 
         self.noise_scale_spinbox = QDoubleSpinBox()
@@ -374,7 +391,7 @@ class FakeLocationWidget(QWidget):
 
             # X coordinate spinbox
             x_spinbox = QDoubleSpinBox()
-            x_spinbox.setRange(0.0, FIELD_WIDTH)
+            x_spinbox.setRange(FIELD_MIN_X, FIELD_MAX_X)
             x_spinbox.setDecimals(2)
             x_spinbox.setSingleStep(0.1)
             x_spinbox.setValue(self.map_widget.robot_positions[robot_key]['x'])
@@ -386,7 +403,7 @@ class FakeLocationWidget(QWidget):
 
             # Y coordinate spinbox
             y_spinbox = QDoubleSpinBox()
-            y_spinbox.setRange(0.0, FIELD_HEIGHT)
+            y_spinbox.setRange(FIELD_MIN_Y, FIELD_MAX_Y)
             y_spinbox.setDecimals(2)
             y_spinbox.setSingleStep(0.1)
             y_spinbox.setValue(self.map_widget.robot_positions[robot_key]['y'])
@@ -462,6 +479,11 @@ class FakeLocationWidget(QWidget):
         self.map_widget.robot_positions[robot_key]['angle'] = value
         self.map_widget.update()
 
+    def _on_current_robot_changed(self, _index):
+        """Update the sentry marker ID when switching simulated alliance."""
+        if self.get_current_robot_key() == 'sentry':
+            self.map_widget.set_sentry_id(self.get_current_robot_id())
+
     def get_topic_prefix(self):
         """Get the topic prefix"""
         return self.topic_prefix_edit.text()
@@ -480,8 +502,15 @@ class FakeLocationWidget(QWidget):
     def get_current_robot_key(self):
         """Get the key of currently selected robot"""
         index = self.current_robot_combo.currentIndex()
-        robot_keys = ['hero', 'engineer', 'standard_3', 'standard_4', 'sentry']
+        robot_keys = [
+            'hero', 'engineer', 'standard_3', 'standard_4', 'sentry', 'sentry']
         return robot_keys[index]
+
+    def get_current_robot_id(self):
+        """Get the official referee-system ID of the selected robot."""
+        index = self.current_robot_combo.currentIndex()
+        robot_ids = [1, 2, 3, 4, 7, 107]
+        return robot_ids[index]
 
     def get_robot_pos_data(self):
         """Get RobotPos data (single robot position, typically for the current robot)

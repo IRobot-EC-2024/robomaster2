@@ -6,7 +6,7 @@
 
 - `legacy-v1.7.0` 对应 《RoboMaster 裁判系统串口协议附录 V1.7.0（20241225）》。
 
-- `v1.1.0` 对应 《RoboMaster 2026 机甲大师高校系列赛通信协议 V1.1.0（20251217）》。
+- `v1.2.0` 对应 《RoboMaster 2026 机甲大师高校系列赛通信协议 V1.2.0（20260209）》。
 
 `main`分支为最新开发版本，可能包含不稳定的改动。
 
@@ -65,6 +65,28 @@ git clone --recursive https://github.com/XDU-IRobot/rm_referee_ros2.git
 
 裁判系统通过串口发送的数据会被封装成消息发布到对应话题上，反之可以通过请求`/rm_referee/tx`服务向裁判系统串口发送数据。
 
+### 原始数据回放
+
+`referee_replay_node` 可以按录制时间间隔读取 `record_raw_data` 生成的文件，复用串口节点的解包和话题发布逻辑。回放节点不会打开串口，也不会创建 `/rm_referee/tx` 服务。
+
+| 参数名                | 说明                                                                  | 默认值 |
+| --------------------- | --------------------------------------------------------------------- | ------ |
+| `normal_data_file`    | 常规链路原始数据文件；留空时不回放该链路                              | `""` |
+| `vt_data_file`        | 图传链路原始数据文件；留空时不回放该链路                              | `""` |
+| `replay_rate`         | 回放倍速；`1.0` 为原速，`2.0` 为两倍速，`0.0` 表示不等待录制时间间隔 | `1.0`  |
+| `start_game_progress` | 从指定 `game_status.game_progress` 首次出现的位置开始回放             | `-1`   |
+
+`start_game_progress` 设置为 `-1` 时不进行阶段定位，从文件开头回放；设置为 `0` 到 `5` 时，节点会先扫描常规链路文件，并从目标阶段首次出现的位置开始回放。如果文件中不存在指定阶段，节点会输出错误信息并停止该文件的回放。
+
+例如，从比赛进行阶段（`game_progress=4`）开始回放：
+
+```bash
+ros2 launch rm_referee referee_replay.launch.py \
+  normal_data_file:=/tmp/rm_referee_data/normal_raw_data_YYYYMMDD_HHMMSS.bin \
+  replay_rate:=1.0 \
+  start_game_progress:=4
+```
+
 ### 话题列表
 
 #### 常规链路
@@ -96,10 +118,13 @@ git clone --recursive https://github.com/XDU-IRobot/rm_referee_ros2.git
 
 | 话题名                          | 消息类型                             | 说明                           |
 | ------------------------------- | ------------------------------------ | ------------------------------ |
-| /rm_referee/custom_robot_data   | rm_referee_msgs/msg/CustomRobotData  | 自定义控制器与机器人交互数据   |
-| /rm_referee/robot_custom_data   | rm_referee_msgs/msg/RobotCustomData  | 自定义控制器接收机器人数据     |
-| /rm_referee/robot_custom_data_2 | rm_referee_msgs/msg/RobotCustomData2 | 机器人发送给自定义客户端的数据 |
-| /rm_referee/remote_control      | rm_referee_msgs/msg/RemoteControl    | 图传链路键鼠遥控数据           |
+| /rm_referee/custom_robot_data   | rm_referee_msgs/msg/CustomRobotData  | 自定义控制器与机器人交互数据       |
+| /rm_referee/robot_custom_data   | rm_referee_msgs/msg/RobotCustomData  | 自定义控制器接收机器人数据         |
+| /rm_referee/robot_custom_data_2 | rm_referee_msgs/msg/RobotCustomData2 | 机器人发送给自定义客户端的数据     |
+| /rm_referee/custom_control      | rm_referee_msgs/msg/CustomControl    | 自定义客户端发送给机器人的自定义指令 |
+
+> [!NOTE]  
+> V1.3.0 协议已删除旧的 `0x0304` 键鼠遥控数据包，因此串口驱动不再发布 `/rm_referee/remote_control`。如需本地模拟自定义客户端的键鼠输入，可使用 `rm_referee_mock` 提供的 `rm_referee_msgs/KeyboardMouseControl`。
 
 ### 服务列表
 

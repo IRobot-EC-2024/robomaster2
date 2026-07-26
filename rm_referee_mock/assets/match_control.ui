@@ -407,7 +407,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>中心增益点</string>
+     <string>中心增益点(UL)</string>
     </property>
    </widget>
    <widget class="QComboBox" name="comboBox_central_buff">
@@ -627,14 +627,7 @@
      </widget>
     </item>
     <item>
-     <widget class="QSpinBox" name="spinBox_robot_id">
-      <property name="maximum">
-       <number>200</number>
-      </property>
-      <property name="value">
-       <number>7</number>
-      </property>
-     </widget>
+     <widget class="QComboBox" name="comboBox_robot_id"/>
     </item>
    </layout>
   </widget>

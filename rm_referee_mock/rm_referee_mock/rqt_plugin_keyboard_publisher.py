@@ -2,7 +2,7 @@
 
 from rqt_gui_py.plugin import Plugin
 
-from rm_referee_msgs.msg import RemoteControl
+from rm_referee_msgs.msg import KeyboardMouseControl
 
 from rm_referee_mock.keyboard_publisher_widget import KeyboardPublisherWidget
 from rm_referee_mock.publisher_pool import PublisherPool
@@ -65,18 +65,18 @@ class KeyboardPublisherPlugin(Plugin):
 
     def _timer_callback(self):
         """Timer callback to publish keyboard state periodically"""
-        msg = RemoteControl()
+        msg = KeyboardMouseControl()
         msg.header.stamp = self._node.get_clock().now().to_msg()
         msg.keyboard_value = self._widget.get_keyboard_value()
         msg.mouse_x = 0
         msg.mouse_y = 0
         msg.mouse_z = 0
-        msg.left_button_down = 0
-        msg.right_button_down = 0
-        msg.reserved = 0
+        msg.left_button_down = False
+        msg.right_button_down = False
+        msg.mid_button_down = False
 
         topic = self._widget.get_publish_topic()
-        self._publisher_pool.publish(topic, RemoteControl, msg)
+        self._publisher_pool.publish(topic, KeyboardMouseControl, msg)
 
     def _on_keyboard_state_changed(self, keyboard_value):
         """Callback when keyboard state changes in the widget"""

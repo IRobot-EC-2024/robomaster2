@@ -61,7 +61,7 @@ class DartClientWidget(QWidget):
         self.hit_count_spin.setValue(0)
         dart_info_layout.addRow("累计击中次数:", self.hit_count_spin)
 
-        # dart_info bit 6-7: 选定目标
+        # dart_info bit 6-8: 选定目标
         self.selected_target_combo = QComboBox()
         self.selected_target_combo.addItems([
             "[0] 未选定/前哨站",
@@ -150,8 +150,8 @@ class DartClientWidget(QWidget):
         # Construct dart_info uint16 according to protocol
         # bit 0-2: last hit target
         # bit 3-5: hit count
-        # bit 6-7: selected target
-        # bit 8-15: reserved
+        # bit 6-8: selected target
+        # bit 9-15: reserved
 
         dart_info_value = 0
         dart_info_value |= (
@@ -159,7 +159,7 @@ class DartClientWidget(QWidget):
         dart_info_value |= (
             (self.hit_count_spin.value() & 0x07) << 3)  # bit 3-5
         dart_info_value |= (
-            (self.selected_target_combo.currentIndex() & 0x03) << 6)  # bit 6-7
+            (self.selected_target_combo.currentIndex() & 0x07) << 6)  # bit 6-8
 
         return {
             'dart_remaining_time': self.dart_remaining_time_spin.value(),

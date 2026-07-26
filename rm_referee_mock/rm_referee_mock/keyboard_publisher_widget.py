@@ -15,7 +15,7 @@ class KeyboardPublisherWidget(QWidget):
     # Signal emitted when keyboard state changes
     keyboard_state_changed = pyqtSignal(int)  # keyboard_value
     
-    # Keyboard mapping based on RemoteControl message constants
+    # Keyboard mapping based on KeyboardMouseControl message constants
     KEY_MAP = {
         Qt.Key_W: (0x01, "W"),
         Qt.Key_S: (0x02, "S"),
@@ -58,7 +58,7 @@ class KeyboardPublisherWidget(QWidget):
         settings_group = QGroupBox("Settings")
         settings_layout = QFormLayout()
         
-        self.topic_edit = ConfirmedLineEdit("/rm_referee/mock/remote_control")
+        self.topic_edit = ConfirmedLineEdit("/rm_referee/mock/keyboard_mouse_control")
         self.topic_edit.setPlaceholderText("Enter topic name")
         settings_layout.addRow("Topic:", self.topic_edit)
         
@@ -209,7 +209,7 @@ class KeyboardPublisherWidget(QWidget):
     def get_publish_topic(self):
         """Get the configured publish topic"""
         topic = self.topic_edit.text().strip()
-        return topic if topic else "/rm_referee/mock/remote_control"
+        return topic if topic else "/rm_referee/mock/keyboard_mouse_control"
     
     def get_publish_rate(self):
         """Get the configured publish rate"""

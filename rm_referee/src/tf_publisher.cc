@@ -31,10 +31,11 @@ class TfPublisher : public rclcpp::Node {
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
     robot_pos_sub_ = create_subscription<rm_referee_msgs::msg::RobotPos>(
-        robot_pos_topic_, 10, std::bind(&TfPublisher::RobotPosCallback, this, std::placeholders::_1));
+        robot_pos_topic_, rclcpp::SensorDataQoS(),
+        std::bind(&TfPublisher::RobotPosCallback, this, std::placeholders::_1));
 
     ground_robot_position_sub_ = create_subscription<rm_referee_msgs::msg::GroundRobotPosition>(
-        ground_robot_position_topic_, 10,
+        ground_robot_position_topic_, rclcpp::SensorDataQoS(),
         std::bind(&TfPublisher::GroundRobotPositionCallback, this, std::placeholders::_1));
   }
 
