@@ -128,8 +128,8 @@ void RefereeNode::FeedVtData(const std::string &data) {
     vt_referee_ << byte;
   }
   if (vt_referee_.loss_rate() > 10.f) {
-    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                         text::Yellow("High loss rate on VT link! %.2f%%").c_str(), vt_referee_.loss_rate());
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, text::Yellow("High loss rate on VT link! %.2f%%").c_str(),
+                         vt_referee_.loss_rate());
   }
 }
 
@@ -230,7 +230,7 @@ void RefereeNode::SpawnPublishers() {
       "/rm_referee/robot_custom_data_2",                                                //
       rclcpp::SensorDataQoS());
   custom_control_pub_ = create_publisher<rm_referee_msgs::msg::CustomControl>(  //
-      "/rm_referee/custom_control",                                               //
+      "/rm_referee/custom_control",                                             //
       rclcpp::SensorDataQoS());
   map_command_pub_ = create_publisher<rm_referee_msgs::msg::MapCommand>(  //
       "/rm_referee/map_command",                                          //

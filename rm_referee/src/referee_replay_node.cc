@@ -80,8 +80,7 @@ void RefereeReplayNode::ReplayFile(const std::string& file_path, bool normal_lin
                 static_cast<long long>(start_game_progress_), static_cast<long long>(replay_offset));
   }
 
-  RCLCPP_INFO(get_logger(), "Replaying %s raw data from: %s (rate=%.3f)", link_name, file_path.c_str(),
-              replay_rate_);
+  RCLCPP_INFO(get_logger(), "Replaying %s raw data from: %s (rate=%.3f)", link_name, file_path.c_str(), replay_rate_);
 
   bool first_record = true;
   uint64_t first_timestamp_us = 0;
@@ -163,8 +162,7 @@ void RefereeReplayNode::ReplayFile(const std::string& file_path, bool normal_lin
   }
 }
 
-bool RefereeReplayNode::FindGameProgressOffset(std::ifstream& file, uint8_t target_progress,
-                                               std::streamoff& offset) {
+bool RefereeReplayNode::FindGameProgressOffset(std::ifstream& file, uint8_t target_progress, std::streamoff& offset) {
   using Revision = rm::device::RefereeRevision;
   using CmdId = rm::device::RefereeCmdId<Revision::kNewV200>;
   rm::device::Referee<Revision::kNewV200> scanner;
@@ -219,15 +217,14 @@ bool RefereeReplayNode::FindGameProgressOffset(std::ifstream& file, uint8_t targ
     }
   }
   if (!found) {
-    RCLCPP_WARN(get_logger(), "Stage scan did not find game_progress=%u; available mask: 0x%04x",
-                target_progress, progress_mask);
+    RCLCPP_WARN(get_logger(), "Stage scan did not find game_progress=%u; available mask: 0x%04x", target_progress,
+                progress_mask);
   }
   return found;
 }
 
-void RefereeReplayNode::PrintProgress(const char* link_name, std::streamoff bytes_read,
-                                      std::streamoff total_bytes, size_t record_count,
-                                      bool force_newline) {
+void RefereeReplayNode::PrintProgress(const char* link_name, std::streamoff bytes_read, std::streamoff total_bytes,
+                                      size_t record_count, bool force_newline) {
   constexpr int kBarWidth = 30;
   const double ratio = std::max(0.0, std::min(1.0, static_cast<double>(bytes_read) / total_bytes));
   const int completed = static_cast<int>(ratio * kBarWidth);
@@ -238,8 +235,8 @@ void RefereeReplayNode::PrintProgress(const char* link_name, std::streamoff byte
   }
 
   std::lock_guard<std::mutex> lock(progress_mutex_);
-  RCLCPP_INFO(get_logger(), "[%s replay] [%s] %6.2f%%  %zu records%s", link_name, bar.c_str(),
-              ratio * 100.0, record_count, force_newline ? " (completed)" : "");
+  RCLCPP_INFO(get_logger(), "[%s replay] [%s] %6.2f%%  %zu records%s", link_name, bar.c_str(), ratio * 100.0,
+              record_count, force_newline ? " (completed)" : "");
 }
 
 bool RefereeReplayNode::WaitForTimestamp(uint64_t timestamp_us, uint64_t first_timestamp_us,

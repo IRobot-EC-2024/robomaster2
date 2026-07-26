@@ -13,16 +13,17 @@
 
 class RefereeReplayNode : public RefereeNode {
  public:
-  explicit RefereeReplayNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions()
-                                                                      .allow_undeclared_parameters(true)
-                                                                      .automatically_declare_parameters_from_overrides(true));
+  explicit RefereeReplayNode(
+      const rclcpp::NodeOptions& options = rclcpp::NodeOptions()
+                                               .allow_undeclared_parameters(true)
+                                               .automatically_declare_parameters_from_overrides(true));
   ~RefereeReplayNode() override;
 
  private:
   void ReplayFile(const std::string& file_path, bool normal_link);
   bool FindGameProgressOffset(std::ifstream& file, uint8_t target_progress, std::streamoff& offset);
-  void PrintProgress(const char* link_name, std::streamoff bytes_read, std::streamoff total_bytes,
-                     size_t record_count, bool force_newline = false);
+  void PrintProgress(const char* link_name, std::streamoff bytes_read, std::streamoff total_bytes, size_t record_count,
+                     bool force_newline = false);
   bool WaitForTimestamp(uint64_t timestamp_us, uint64_t first_timestamp_us,
                         const std::chrono::steady_clock::time_point& replay_start);
 
